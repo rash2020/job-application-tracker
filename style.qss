@@ -1,0 +1,95 @@
+/* General app style */
+QWidget {
+    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    background-color: #f4f6f8;
+    color: #333;
+}
+
+/* Title label */
+QLabel#title_label {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* QPushButtons */
+QPushButton {
+    background-color: #3498db;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #2980b9;
+}
+QPushButton:pressed {
+    background-color: #1c5980;
+}
+
+/* Special buttons like ✏️ and 🗑️ */
+QPushButton:flat {
+    background: transparent;
+    padding: 4px;
+}
+
+/* Search input */
+QLineEdit {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px 10px;
+    background-color: #fff;
+}
+
+/* ComboBox */
+QComboBox {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px 8px;
+    background-color: #fff;
+}
+
+/* QTextEdit */
+QTextEdit {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #fff;
+    padding: 6px;
+}
+
+/* QDateEdit */
+QDateEdit {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px 8px;
+    background-color: #fff;
+}
+
+/* Table styling */
+QTableWidget {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    gridline-color: #ccc;
+}
+QHeaderView::section {
+    background-color: #ecf0f1;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+/* Scroll Area */
+QScrollArea {
+    border: none;
+}
+
+/* Dashboard container */
+QWidget#dashboard_container {
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+}
