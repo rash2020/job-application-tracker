@@ -31,8 +31,9 @@ It lets you record where you've applied, track application status, take notes, a
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/job-tracker.git
-cd job-tracker
+git clone https://github.com/rash2020/job-application-tracker.git
+cd job-application-tracker
+
 ```
 
 ### 2. Create and activate virtual environment (recommended)
