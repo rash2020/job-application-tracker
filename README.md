@@ -96,6 +96,8 @@ Inside the app, use the **"Export to CSV"** option to save all job applications 
 To create a standalone `.app` or `.exe` version :
 
 ```bash
+pip install pyinstaller
+
 pyinstaller --noconfirm --windowed --onedir --add-data "data:./data" main.py
 ```
 
