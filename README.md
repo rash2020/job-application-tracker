@@ -31,8 +31,9 @@ It lets you record where you've applied, track application status, take notes, a
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/job-tracker.git
-cd job-tracker
+git clone https://github.com/rash2020/job-application-tracker.git
+cd job-application-tracker
+
 ```
 
 ### 2. Create and activate virtual environment (recommended)
@@ -95,6 +96,8 @@ Inside the app, use the **"Export to CSV"** option to save all job applications 
 To create a standalone `.app` or `.exe` version :
 
 ```bash
+pip install pyinstaller
+
 pyinstaller --noconfirm --windowed --onedir --add-data "data:./data" main.py
 ```
 
