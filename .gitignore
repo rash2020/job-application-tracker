@@ -1,9 +1,27 @@
-# .gitignore
-env/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.db
-*.sqlite
-dist/
+*.py[cod]
+*.so
+
+# Virtual environments
+env/
+venv/
+.env/
+
+# PyInstaller build folders
 build/
+dist/
 *.spec
+
+# SQLite database file
+*.db
+
+# MacOS metadata
+.DS_Store
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# Log files
+*.log

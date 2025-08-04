@@ -1,6 +1,10 @@
 # gui/main_window.py
 
 import sys
+import os
+import subprocess
+import platform
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QPushButton,
@@ -11,6 +15,8 @@ from PySide6.QtCore import Qt, QDate
 from data.database import SessionLocal
 from data.models import JobApplication
 from collections import Counter
+from PySide6.QtWidgets import QFormLayout
+
 from PySide6.QtWidgets import QFileDialog
 
 
@@ -83,7 +89,9 @@ class MainWindow(QMainWindow):
     def show_add_job_form(self, job=None):
         self.clear_content_area()
 
-        self.form_layout = QVBoxLayout()
+        form_widget = QWidget()
+        form_layout = QFormLayout(form_widget)
+        form_layout.setSpacing(10)
 
         self.company_input = QLineEdit()
         self.position_input = QLineEdit()
@@ -92,30 +100,64 @@ class MainWindow(QMainWindow):
         self.status_input = QComboBox()
         self.status_input.addItems(["Applied", "Interview Scheduled", "Rejected", "Accepted"])
         self.notes_input = QTextEdit()
+        self.description_input = QTextEdit()
+        self.cover_letter_path = QLineEdit()
+        self.cover_letter_path.setReadOnly(True)
+        self.cover_letter_button = QPushButton("📎 Attach Cover Letter")
+        self.cover_letter_button.clicked.connect(self.select_cover_letter)
+
+        self.cv_path = QLineEdit()
+        self.cv_path.setReadOnly(True)
+        self.cv_button = QPushButton("📎 Attach CV / Resume")
+        self.cv_button.clicked.connect(self.select_cv)
 
         if job:
+            # Editing an existing job
             self.company_input.setText(job.company)
             self.position_input.setText(job.position)
             self.date_input.setDate(QDate(job.date_applied.year, job.date_applied.month, job.date_applied.day))
             self.status_input.setCurrentText(job.status)
             self.notes_input.setText(job.notes)
+            self.description_input.setText(job.description or "")
+            self.cover_letter_path.setText(job.cover_letter_path or "")
+            self.cv_path.setText(job.cv_path or "")
+        else:
+            # New job: clear all fields
+            self.company_input.clear()
+            self.position_input.clear()
+            self.date_input.setDate(QDate.currentDate())
+            self.status_input.setCurrentIndex(0)
+            self.notes_input.clear()
+            self.description_input.clear()
+            self.cover_letter_path.clear()
+            self.cv_path.clear()
+
+
+        # Attach fields to the form layout
+        form_layout.addRow("Company Name:", self.company_input)
+        form_layout.addRow("Position:", self.position_input)
+        form_layout.addRow("Date Applied:", self.date_input)
+        form_layout.addRow("Status:", self.status_input)
+        form_layout.addRow("Notes:", self.notes_input)
+        form_layout.addRow("Job Description:", self.description_input)
+
+        # Attach Cover Letter with horizontal layout
+        cl_layout = QHBoxLayout()
+        cl_layout.addWidget(self.cover_letter_path)
+        cl_layout.addWidget(self.cover_letter_button)
+        form_layout.addRow("Cover Letter:", cl_layout)
+
+        # Attach CV with horizontal layout
+        cv_layout = QHBoxLayout()
+        cv_layout.addWidget(self.cv_path)
+        cv_layout.addWidget(self.cv_button)
+        form_layout.addRow("CV / Resume:", cv_layout)
 
         self.save_button = QPushButton("Update Job" if job else "Save Job Application")
         self.save_button.clicked.connect(lambda: self.save_job(job))
+        form_layout.addRow(self.save_button)
 
-        self.form_layout.addWidget(QLabel("Company Name:"))
-        self.form_layout.addWidget(self.company_input)
-        self.form_layout.addWidget(QLabel("Position:"))
-        self.form_layout.addWidget(self.position_input)
-        self.form_layout.addWidget(QLabel("Date Applied:"))
-        self.form_layout.addWidget(self.date_input)
-        self.form_layout.addWidget(QLabel("Status:"))
-        self.form_layout.addWidget(self.status_input)
-        self.form_layout.addWidget(QLabel("Notes:"))
-        self.form_layout.addWidget(self.notes_input)
-        self.form_layout.addWidget(self.save_button)
-
-        self.content_area_layout.addLayout(self.form_layout)
+        self.content_area_layout.addWidget(form_widget)
 
 
     def save_job(self, job=None):
@@ -125,13 +167,21 @@ class MainWindow(QMainWindow):
             job.date_applied = self.date_input.date().toPython()
             job.status = self.status_input.currentText()
             job.notes = self.notes_input.toPlainText()
+            job.description = self.description_input.toPlainText()  
+            job.cover_letter_path = self.cover_letter_path.text()
+            job.cv_path = self.cv_path.text()
+
         else:
             job = JobApplication(
                 company=self.company_input.text(),
                 position=self.position_input.text(),
                 date_applied=self.date_input.date().toPython(),
                 status=self.status_input.currentText(),
-                notes=self.notes_input.toPlainText()
+                notes=self.notes_input.toPlainText(),
+                description=self.description_input.toPlainText(),
+                cover_letter_path=self.cover_letter_path.text(),  # ✅ Added
+                cv_path=self.cv_path.text()
+            
             )
             self.session.add(job)
 
@@ -167,15 +217,28 @@ class MainWindow(QMainWindow):
 
         jobs = query.order_by(JobApplication.date_applied.desc()).all()
 
-        table = QTableWidget(len(jobs), 7)
-        table.setHorizontalHeaderLabels(["Company", "Position", "Date Applied", "Status", "Notes", "Edit", "Delete"])
+        table = QTableWidget(len(jobs), 10)
+        table.setHorizontalHeaderLabels([
+            "Company", "Position", "Date Applied", "Status", "Notes",
+            "Job Desc", "CV", "Cover Letter", "Edit", "Delete"
+        ])
 
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(QHeaderView.Interactive)  # 🛠️ Manual resizing
+
+        # Optional: default widths
+        table.setColumnWidth(0, 160)  # Company
+        table.setColumnWidth(1, 160)  # Position
+        table.setColumnWidth(2, 110)  # Date
+        table.setColumnWidth(3, 120)  # Status
+        table.setColumnWidth(4, 200)  # Notes
+        table.setColumnWidth(5, 80)   # Job Desc
+        table.setColumnWidth(6, 80)   # CV
+        table.setColumnWidth(7, 100)  # Cover Letter
+        table.setColumnWidth(8, 60)   # Edit
+        table.setColumnWidth(9, 60)   # Delete
+
 
         for row, job in enumerate(jobs):
             table.setItem(row, 0, QTableWidgetItem(job.company))
@@ -185,20 +248,34 @@ class MainWindow(QMainWindow):
             status_combo = QComboBox()
             status_combo.addItems(["Applied", "Interview Scheduled", "Rejected", "Accepted"])
             status_combo.setCurrentText(job.status)
-            status_combo.currentTextChanged.connect(lambda new_status, job_id=job.id: self.update_status(job_id, new_status))
+            status_combo.currentTextChanged.connect(self.make_status_update_callback(job.id))
             table.setCellWidget(row, 3, status_combo)
 
-            table.setItem(row, 4, QTableWidgetItem(job.notes))
+            table.setItem(row, 4, QTableWidgetItem(job.notes or ""))
+
+            desc_button = QPushButton("📄")
+            desc_button.clicked.connect(self.make_description_callback(job.description))
+            table.setCellWidget(row, 5, desc_button)
+
+            cv_button = QPushButton("📄 CV")
+            cv_button.clicked.connect(self.make_open_file_callback(job.cv_path))
+            table.setCellWidget(row, 6, cv_button)
+
+            cl_button = QPushButton("📄 CL")
+            cl_button.clicked.connect(self.make_open_file_callback(job.cover_letter_path))
+            table.setCellWidget(row, 7, cl_button)
 
             edit_button = QPushButton("✏️")
-            edit_button.clicked.connect(lambda checked, j=job: self.show_add_job_form(j))
-            table.setCellWidget(row, 5, edit_button)
+            edit_button.clicked.connect(self.make_edit_callback(job))
+            table.setCellWidget(row, 8, edit_button)
 
             delete_button = QPushButton("🗑️")
-            delete_button.clicked.connect(lambda checked, job_id=job.id: self.delete_job(job_id))
-            table.setCellWidget(row, 6, delete_button)
+            delete_button.clicked.connect(self.make_delete_callback(job.id))
+            table.setCellWidget(row, 9, delete_button)
 
         self.content_area_layout.addWidget(table)
+
+
 
 
     def show_dashboard(self):
@@ -242,7 +319,8 @@ class MainWindow(QMainWindow):
                     with open(path, mode='w', newline='', encoding='utf-8') as file:
                         import csv
                         writer = csv.writer(file)
-                        writer.writerow(["ID", "Company", "Position", "Date Applied", "Status", "Notes"])
+                        writer.writerow(["ID", "Company", "Position", "Date Applied", "Status", "Notes", "Description"])
+
                         for job in jobs:
                             writer.writerow([
                                 job.id,
@@ -250,16 +328,74 @@ class MainWindow(QMainWindow):
                                 job.position,
                                 job.date_applied.strftime("%Y-%m-%d"),
                                 job.status,
-                                job.notes.replace("\n", " ") if job.notes else ""
+                                job.notes.replace("\n", " ") if job.notes else "",
+                                job.description.replace("\n", " ") if job.description else ""
                             ])
+
                     QMessageBox.information(self, "Success", f"Data exported successfully to:\n{path}")
                 except Exception as e:
                     QMessageBox.critical(self, "Error", f"Failed to export CSV:\n{str(e)}")
+
+    def view_description(self, description):
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("Job Description")
+                dlg.setText("Full Job Description:")
+                dlg.setDetailedText(description or "No description provided.")
+                dlg.setStandardButtons(QMessageBox.Ok)
+                dlg.exec()
+    def select_cover_letter(self):
+            path, _ = QFileDialog.getOpenFileName(self, "Select Cover Letter", "", "PDF Files (*.pdf);;Text Files (*.txt);;All Files (*)")
+            if path:
+                self.cover_letter_path.setText(path)
+
+    def select_cv(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select CV / Resume", "", "PDF Files (*.pdf);;Word Docs (*.docx);;All Files (*)")
+        if path:
+            self.cv_path.setText(path)
+
+    def open_file(self, path):
+        if path and os.path.exists(path):
+            if platform.system() == "Darwin":  # macOS
+                subprocess.call(["open", path])
+            elif platform.system() == "Windows":
+                os.startfile(path)
+            else:  # Linux
+                subprocess.call(["xdg-open", path])
+        else:
+            QMessageBox.warning(self, "File Not Found", f"File not found:\n{path}")
+
+    def make_description_callback(self, desc):
+        return lambda checked=False: self.view_description(desc)
+
+    def make_open_file_callback(self, path):
+        return lambda checked=False: self.open_file(path)
+
+    def make_edit_callback(self, job):
+        return lambda checked=False: self.show_add_job_form(job)
+
+    def make_delete_callback(self, job_id):
+        return lambda checked=False: self.delete_job(job_id)
+
+    def make_status_update_callback(self, job_id):
+        return lambda new_status: self.update_status(job_id, new_status)
+
+
+
+
 
 
 
 def launch_app():
     app = QApplication(sys.argv)
+
+    # Load QSS
+    try:
+        with open("gui/style.qss", "r") as f:
+            style = f.read()
+            app.setStyleSheet(style)
+    except Exception as e:
+        print("Failed to load style.qss:", e)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
