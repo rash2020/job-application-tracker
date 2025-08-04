@@ -2,21 +2,25 @@
 
 A simple desktop application built with Python and PySide6 to help you keep track of your job applications.
 
-It lets you record where you've applied, track application status, take notes, and visualize your progress with a built-in dashboard.
+It lets you record where you've applied, attach your resume and cover letter, paste job descriptions, track status, and visualize your progress with a built-in dashboard.
 
 ---
 
 ## 🧰 Features
 
 - ✅ Add, edit, and delete job applications  
-- 🗂️ Track company, position, date applied, notes, and status  
+- 🗂️ Track:
+  - Company, Position, Date Applied
+  - Notes and Job Description
+  - Attached CV/Resume and Cover Letter
 - 🔍 Search by company or job title  
-- 📊 Visual dashboard showing:
+- 📊 Visual dashboard with:
   - Total applications
-  - Applications per status (e.g., Applied, Interviewed)
+  - Applications per status (Applied, Interviewed, etc.)
   - Interviews scheduled  
-- 🧾 Export your job applications to CSV  
-- 💾 Local SQLite database (no setup required)  
+- 📎 View job descriptions and open attached files directly
+- 📤 Export your job applications to CSV  
+- 💾 Local SQLite database (`jobs.db`) — no setup required  
 
 ---
 
@@ -70,17 +74,18 @@ python main.py
 
 ```bash
 job-tracker/
-├── data/
-│   ├── database.py      # DB connection and session setup
-│   ├── models.py        # SQLAlchemy JobApplication model
-├── gui/
-│   └── main_window.py   # Main GUI logic
-├── utils/               # Helper functions (optional)
-├── requirements.txt     # Python dependencies
-├── main.py              # Entry point
 ├── assets/
-│   └── screenshot.png   # Demo screenshot (optional)
-└── README.md
+│   └── screenshot.png       # App screenshot
+├── data/
+│   ├── database.py          # DB connection and session
+│   ├── models.py            # SQLAlchemy JobApplication model
+├── gui/
+│   └── main_window.py       # Main GUI interface
+├── utils/                   # Optional helper modules
+├── migrate_db.py            # Script to migrate old DBs safely
+├── requirements.txt         # Python dependencies
+├── main.py                  # Entry point
+├── README.md
 ```
 
 ---
@@ -116,4 +121,3 @@ MIT License – feel free to use, modify, and share!
 Made with 💻 by Rashad Abbas
 
 ---
-
