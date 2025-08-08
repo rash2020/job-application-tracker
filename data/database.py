@@ -1,4 +1,6 @@
+
 # data/database.py
+
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -12,4 +14,8 @@ engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine)
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    if not os.path.exists(DB_PATH):
+        print("📁 jobs.db not found. Creating new database...")
+        Base.metadata.create_all(bind=engine)
+    else:
+        print("✅ jobs.db already exists.")

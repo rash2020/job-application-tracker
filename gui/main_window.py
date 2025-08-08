@@ -9,8 +9,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QPushButton,
     QHBoxLayout, QLineEdit, QComboBox, QTextEdit, QDateEdit,
-    QMessageBox, QHeaderView, QScrollArea
+    QMessageBox, QHeaderView, QScrollArea, QFormLayout, QFileDialog, QMenu
 )
+from PySide6.QtGui import QAction  # ✅ Correct location for QAction
 from PySide6.QtCore import Qt, QDate
 from data.database import SessionLocal
 from data.models import JobApplication
@@ -18,6 +19,35 @@ from collections import Counter
 from PySide6.QtWidgets import QFormLayout
 
 from PySide6.QtWidgets import QFileDialog
+
+class SortableHeader(QHeaderView):
+    def __init__(self, orientation, parent=None, on_sort_request=None):
+        super().__init__(orientation, parent)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+        self.on_sort_request = on_sort_request  # callback to sort
+
+    def show_context_menu(self, pos):
+        index = self.logicalIndexAt(pos)
+
+        if index < 0:
+            return
+
+        # ✅ Only allow sorting on text-based columns (0–5)
+        if index > 5:
+            return
+
+        menu = QMenu()
+        sort_asc = QAction("Sort Ascending", self)
+        sort_desc = QAction("Sort Descending", self)
+
+        sort_asc.triggered.connect(lambda: self.on_sort_request(index, Qt.AscendingOrder))
+        sort_desc.triggered.connect(lambda: self.on_sort_request(index, Qt.DescendingOrder))
+
+        menu.addAction(sort_asc)
+        menu.addAction(sort_desc)
+        menu.exec(self.mapToGlobal(pos))
+
 
 
 class MainWindow(QMainWindow):
@@ -46,7 +76,6 @@ class MainWindow(QMainWindow):
         self.btn_dashboard.clicked.connect(self.show_dashboard)
         self.btn_export_csv = QPushButton("📤 Export CSV")
         self.btn_export_csv.clicked.connect(self.export_to_csv)
-        self.button_layout.addWidget(self.btn_dashboard)
         self.button_layout.addWidget(self.btn_export_csv)
 
         self.button_layout.addWidget(self.btn_add_job)
@@ -98,6 +127,7 @@ class MainWindow(QMainWindow):
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
         self.status_input = QComboBox()
+        self.location_input = QLineEdit() 
         self.status_input.addItems(["Applied", "Interview Scheduled", "Rejected", "Accepted"])
         self.notes_input = QTextEdit()
         self.description_input = QTextEdit()
@@ -117,6 +147,7 @@ class MainWindow(QMainWindow):
             self.position_input.setText(job.position)
             self.date_input.setDate(QDate(job.date_applied.year, job.date_applied.month, job.date_applied.day))
             self.status_input.setCurrentText(job.status)
+            self.location_input.setText(job.location or "")
             self.notes_input.setText(job.notes)
             self.description_input.setText(job.description or "")
             self.cover_letter_path.setText(job.cover_letter_path or "")
@@ -127,6 +158,7 @@ class MainWindow(QMainWindow):
             self.position_input.clear()
             self.date_input.setDate(QDate.currentDate())
             self.status_input.setCurrentIndex(0)
+            self.location_input.clear()
             self.notes_input.clear()
             self.description_input.clear()
             self.cover_letter_path.clear()
@@ -138,6 +170,8 @@ class MainWindow(QMainWindow):
         form_layout.addRow("Position:", self.position_input)
         form_layout.addRow("Date Applied:", self.date_input)
         form_layout.addRow("Status:", self.status_input)
+        form_layout.addRow("Location (City/Country):", self.location_input)
+
         form_layout.addRow("Notes:", self.notes_input)
         form_layout.addRow("Job Description:", self.description_input)
 
@@ -166,8 +200,9 @@ class MainWindow(QMainWindow):
             job.position = self.position_input.text()
             job.date_applied = self.date_input.date().toPython()
             job.status = self.status_input.currentText()
+            job.location = self.location_input.text()  # ✅ You missed this line
             job.notes = self.notes_input.toPlainText()
-            job.description = self.description_input.toPlainText()  
+            job.description = self.description_input.toPlainText()
             job.cover_letter_path = self.cover_letter_path.text()
             job.cv_path = self.cv_path.text()
 
@@ -180,7 +215,8 @@ class MainWindow(QMainWindow):
                 notes=self.notes_input.toPlainText(),
                 description=self.description_input.toPlainText(),
                 cover_letter_path=self.cover_letter_path.text(),  # ✅ Added
-                cv_path=self.cv_path.text()
+                cv_path=self.cv_path.text(),
+                location=self.location_input.text() 
             
             )
             self.session.add(job)
@@ -217,13 +253,17 @@ class MainWindow(QMainWindow):
 
         jobs = query.order_by(JobApplication.date_applied.desc()).all()
 
-        table = QTableWidget(len(jobs), 10)
+        table = QTableWidget(len(jobs), 11)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+
         table.setHorizontalHeaderLabels([
-            "Company", "Position", "Date Applied", "Status", "Notes",
+            "Company", "Position", "Date Applied", "Status", "Location", "Notes",
             "Job Desc", "CV", "Cover Letter", "Edit", "Delete"
         ])
 
-        header = table.horizontalHeader()
+
+        header = SortableHeader(Qt.Horizontal, table, self.sort_table_by_column)
+        table.setHorizontalHeader(header)
         header.setStretchLastSection(False)
         header.setSectionResizeMode(QHeaderView.Interactive)  # 🛠️ Manual resizing
 
@@ -249,29 +289,31 @@ class MainWindow(QMainWindow):
             status_combo.addItems(["Applied", "Interview Scheduled", "Rejected", "Accepted"])
             status_combo.setCurrentText(job.status)
             status_combo.currentTextChanged.connect(self.make_status_update_callback(job.id))
-            table.setCellWidget(row, 3, status_combo)
+            table.setCellWidget(row, 3, status_combo)  # ✅ Status goes in column 3
 
-            table.setItem(row, 4, QTableWidgetItem(job.notes or ""))
+            table.setItem(row, 4, QTableWidgetItem(job.location or ""))  # ✅ Location in column 4
+            table.setItem(row, 5, QTableWidgetItem(job.notes or ""))
 
             desc_button = QPushButton("📄")
             desc_button.clicked.connect(self.make_description_callback(job.description))
-            table.setCellWidget(row, 5, desc_button)
+            table.setCellWidget(row, 6, desc_button)
 
             cv_button = QPushButton("📄 CV")
             cv_button.clicked.connect(self.make_open_file_callback(job.cv_path))
-            table.setCellWidget(row, 6, cv_button)
+            table.setCellWidget(row, 7, cv_button)
 
             cl_button = QPushButton("📄 CL")
             cl_button.clicked.connect(self.make_open_file_callback(job.cover_letter_path))
-            table.setCellWidget(row, 7, cl_button)
+            table.setCellWidget(row, 8, cl_button)
 
             edit_button = QPushButton("✏️")
             edit_button.clicked.connect(self.make_edit_callback(job))
-            table.setCellWidget(row, 8, edit_button)
+            table.setCellWidget(row, 9, edit_button)
 
             delete_button = QPushButton("🗑️")
             delete_button.clicked.connect(self.make_delete_callback(job.id))
-            table.setCellWidget(row, 9, delete_button)
+            table.setCellWidget(row, 10, delete_button)
+
 
         self.content_area_layout.addWidget(table)
 
@@ -319,7 +361,8 @@ class MainWindow(QMainWindow):
                     with open(path, mode='w', newline='', encoding='utf-8') as file:
                         import csv
                         writer = csv.writer(file)
-                        writer.writerow(["ID", "Company", "Position", "Date Applied", "Status", "Notes", "Description"])
+                        writer.writerow(["ID", "Company", "Position", "Date Applied", "Status", "Location", "Notes", "Description"])
+
 
                         for job in jobs:
                             writer.writerow([
@@ -328,6 +371,7 @@ class MainWindow(QMainWindow):
                                 job.position,
                                 job.date_applied.strftime("%Y-%m-%d"),
                                 job.status,
+                                job.location or "",
                                 job.notes.replace("\n", " ") if job.notes else "",
                                 job.description.replace("\n", " ") if job.description else ""
                             ])
@@ -378,6 +422,13 @@ class MainWindow(QMainWindow):
 
     def make_status_update_callback(self, job_id):
         return lambda new_status: self.update_status(job_id, new_status)
+    def sort_table_by_column(self, column_index, order):
+        table = self.content_area_layout.itemAt(0).widget()
+        if isinstance(table, QTableWidget):
+            table.sortItems(column_index, order)
+            table.horizontalHeader().setSortIndicatorShown(True)
+            table.horizontalHeader().setSortIndicator(column_index, order)
+
 
 
 

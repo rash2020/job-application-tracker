@@ -11,10 +11,12 @@ class JobApplication(Base):
     position = Column(String(100), nullable=False)
     date_applied = Column(Date, nullable=False)
     status = Column(String(50), nullable=False)
+    location = Column(String) 
     notes = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     cover_letter_path = Column(String, nullable=True)
     cv_path = Column(String, nullable=True)
+
 
 
     def __repr__(self):
